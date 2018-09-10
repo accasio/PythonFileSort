@@ -1,24 +1,61 @@
+"""
+This is a modified version of the original script taken from https://gist.github.com/sqordfish/8e749e79a80bcad369c5
+This version will sort subfolders as well. And sorts unknown file types into a seperate (./Other/)folder.
+It will also rename files with the same names but have different MD5 values.
+"""
+
 import os
-import sys
 import hashlib
+import sys
 import shutil
+from time import time
 
 
 # Creates folders for different file types
-def makeFolders(downloadDirectory, fileTypes):
+def makeFolders(sortDir, fileTypes):
     for fileType in fileTypes.keys():
-        directory = downloadDirectory + "\\" + fileType
+        directory = sortDir + fileType
 
         if not os.path.exists(directory):
             os.mkdir(directory)
-    if not os.path.exists("D:\\Other"):
-        os.mkdir("D:\\Other")
+    if not os.path.exists(sortDir + "Other"):
+        os.mkdir(sortDir + "Other")
+
+
+def renameFile(dest, moveFile, fileType):
+    srcPath = moveFile
+    filename = os.path.basename(moveFile)
+    dstPath = dest + fileType + "\\" + filename
+
+    # If the file doesn't have a duplicate in the new folder, move it
+    if not os.path.isfile(dstPath):
+        os.rename(srcPath, dstPath)
+        return
+    # If the file already exists with that name and has the same md5 sum
+    elif os.path.isfile(dstPath) and \
+            checkSum(srcPath) == checkSum(dstPath):
+        os.remove(srcPath)
+        print "removed " + srcPath
+        return
+
+    # If the file doesn't exist but has the same name as another file, rename it.
+    elif os.path.isfile(dstPath) and \
+            checkSum(srcPath) != checkSum(dstPath):
+        newname = os.path.basename(os.path.dirname(srcPath))
+        dstPath = dest + fileType + "\\" + newname + filename
+        if not os.path.isfile(dstPath):
+            os.rename(srcPath, dstPath)
+        else:
+            # If a file exits with newname added on in the folder just rename with UNIX timestamp
+            dstPath = dest + fileType + "\\" + str(int(time())) + filename
+            os.rename(srcPath, dstPath)
+    else:
+        print "Didn't know what to do with '%s', you may have to sort it manually." % srcPath
 
 
 # Moves file to its proper folder and delete any duplicates
-def moveFile(moveFile, fileTypes):
+def moveFile(dest, moveFile, fileTypes):
     # The file format is what is after the period in the file name
-
     if "." in moveFile:
         temp = moveFile.split(".")
         fileFormat = temp[-1]
@@ -26,57 +63,12 @@ def moveFile(moveFile, fileTypes):
         return
 
     for fileType in fileTypes.keys():
-        if fileFormat in fileTypes[fileType]:
-            srcPath = moveFile
-            filename = os.path.basename(moveFile)
-            dstPath = "D:\\" + fileType + "\\" + filename
-
-            # If the file doesn't have a duplicate in the new folder, move it
-            if not os.path.isfile(dstPath):
-                os.rename(srcPath, dstPath)
-            # If the file already exists with that name and has the same md5 sum
-
-            elif os.path.isfile(dstPath) and \
-                    checkSum(srcPath) == checkSum(dstPath):
-                os.remove(srcPath)
-                print "removed " + srcPath
-                return
-
-            elif os.path.isfile(dstPath) and \
-                    checkSum(srcPath) != checkSum(dstPath):
-                newname = os.path.basename(os.path.dirname(srcPath))
-
-                dstPath = "D:\\" + fileType + "\\" + newname + filename
-                if not os.path.isfile(dstPath):
-                    os.rename(srcPath, dstPath)
-                elif os.path.isfile(dstPath) and \
-                        checkSum(srcPath) == checkSum(dstPath):
-                    os.remove(srcPath)
-                    print "removed " + srcPath
+        if fileFormat.lower() in fileTypes[fileType]:
+            renameFile(dest, moveFile, fileType)
+            return
 
         elif fileType == 'Virtual_Machine_and_iso':
-            print moveFile
-            """
-            srcPath = moveFile
-            filename = os.path.basename(moveFile)
-            dstPath = "D:\\Other\\" + filename
-
-            # If the file doesn't have a duplicate in the new folder, move it
-            if not os.path.isfile(dstPath):
-                os.rename(srcPath, dstPath)
-            # If the file already exists with that name and has the same md5 sum
-
-            elif os.path.isfile(dstPath) and \
-                    checkSum(srcPath) == checkSum(dstPath):
-                os.remove(srcPath)
-                print "removed " + srcPath
-            return
-            
-            
-            """
-
-
-
+            renameFile(dest, moveFile, "Other")
 
 
 # Get md5 checksum of a file. Chunk size is how much of the file to read at a time.
@@ -93,47 +85,47 @@ def checkSum(fileDir, chunkSize=8192):
     return md5.hexdigest()
 
 
-def loopFolder(folder, fileTypes):
-    downloadFiles = os.listdir(folder)
-    if not downloadFiles:
-        shutil.rmtree(folder)
-    elif len(downloadFiles) == 1 and '.ini' in downloadFiles[0] or '.db' in downloadFiles[0]:
+def loopFolder(dest, folder, fileTypes):
+    file_list = os.listdir(folder)
+    # delete empty folders
+    if not file_list:
         shutil.rmtree(folder)
 
-    for filename in downloadFiles:
-        if filename == '$RECYCLE.BIN' or '.ini' in filename or '.lnk' in filename \
-                or '.db' in filename or filename == '.Picasa3Temp' or 'bob marley and the wailers' in filename:
-            continue
+    for filename in file_list:
         if os.path.isdir(folder + '\\' + filename):
-            loopFolder(folder + '\\' + filename, fileTypes)
+            loopFolder(dest, folder + '\\' + filename, fileTypes)
         else:
-            moveFile(folder + '\\' + filename, fileTypes)
+            moveFile(dest, folder + '\\' + filename, fileTypes)
+
 
 def main():
-    # Dictionary contains file types as keys and lists of their corresponding file formats`
+    # Dictionary contains file types as keys and lists of their corresponding file formats
+    # tried to include as many formats as possible but I'm sure there are more that could be added
     fileTypes = {}
-    fileTypes["Images"] = ["jpg", "gif", "png", "jpeg", "bmp", "JPG", "bmp", "psd", "BMP", "tif"]
+    fileTypes["Images"] = ["jpg", "gif", "png", "jpeg", "bmp", "psd", "tif", "svg"]
     fileTypes["Audio"] = ["mp3", "wav", "aiff", "flac", "aac", "wma", "au", "amr"]
-    fileTypes["Video"] = ["m4v", "flv", "mpeg", "mov", "mpg", "mpe", "wmv", "MOV", "mp4", "mkv", "AVI", "avi", "3gp", "m1v"]
-    fileTypes["Documents"] = ["doc", "docx", "txt", "ppt", "pptx", "pdf", "rtf", "xls", "eml", "PDF"]
-    fileTypes["Exe"] = ["exe"]
+    fileTypes["Video"] = ["m4v", "flv", "mpeg", "mov", "mpg", "mpe", "wmv", "ts", "mp4", "mkv", "avi", "3gp", "m1v"]
+    fileTypes["Documents"] = ["doc", "docx", "txt", "ppt", "pptx", "pdf", "rtf", "xls", "eml", "csv"]
+    fileTypes["Exe"] = ["exe", "msi"]
     fileTypes["Compressed"] = ["zip", "tar", "7", "rar"]
     fileTypes["Virtual_Machine_and_iso"] = ["vmdk", "ova", "iso"]
 
     # The second command line argument is the download directory
-    downloadDirectory = 'D:\\Unknown Artist\\'
-    downloadFiles = os.listdir(downloadDirectory)
-    # makeFolders(downloadDirectory, fileTypes)
+    # sortDir = 'C:\\Folder\\'
+    sortDir = sys.argv[1]
+    downloadFiles = os.listdir(sortDir)
+    makeFolders(sortDir, fileTypes)
 
     for filename in downloadFiles:
-        if filename == '$RECYCLE.BIN' or filename == 'RECYCLER' or filename == 'System Volume Information' or filename == 'Audio' or filename == 'Images' or filename == 'Video' or \
-                filename == 'Documents' or filename == 'Exe' or filename == 'Compressed' or \
-                filename == 'Virtual_Machine_and_iso' or filename == 'Other' or filename == "Extra":
+        # may need to edit this line if these folders need sorting
+        if filename == '$RECYCLE.BIN' or filename == 'System Volume Information' or filename == 'Audio' or \
+                filename == 'Images' or filename == 'Video' or filename == 'Documents' or filename == 'Exe' or \
+                filename == 'Compressed' or filename == 'Virtual_Machine_and_iso' or filename == 'Other':
             continue
-        if os.path.isdir(downloadDirectory + filename):
-            loopFolder(downloadDirectory + filename, fileTypes)
+        if os.path.isdir(sortDir + filename):
+            loopFolder(sortDir, sortDir + filename, fileTypes)
         else:
-            moveFile(downloadDirectory + filename , fileTypes)
+            moveFile(sortDir, sortDir + filename, fileTypes)
 
 
 main()
