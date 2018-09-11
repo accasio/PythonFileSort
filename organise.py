@@ -1,6 +1,6 @@
 """
 This is a modified version of the original script taken from https://gist.github.com/sqordfish/8e749e79a80bcad369c5
-This version will sort subfolders as well. And sorts unknown file types into a seperate (./Other/)folder.
+This version will sort subfolders as well. And also sorts unknown file types into a separate (./Other/) folder.
 It will also rename files with the same names but have different MD5 values.
 """
 
@@ -47,7 +47,7 @@ def renameFile(dest, moveFile, fileType):
             os.rename(srcPath, dstPath)
         else:
             # If a file exits with newname added on in the folder just rename with UNIX timestamp
-            dstPath = dest + fileType + "\\" + str(int(time())) + filename
+            dstPath = dest + fileType + "\\" + str(int(time() * 10000)) + filename
             os.rename(srcPath, dstPath)
     else:
         print "Didn't know what to do with '%s', you may have to sort it manually." % srcPath
@@ -60,6 +60,7 @@ def moveFile(dest, moveFile, fileTypes):
         temp = moveFile.split(".")
         fileFormat = temp[-1]
     else:
+        renameFile(dest, moveFile, "Other")
         return
 
     for fileType in fileTypes.keys():
@@ -117,10 +118,9 @@ def main():
     makeFolders(sortDir, fileTypes)
 
     for filename in downloadFiles:
-        # may need to edit this line if these folders need sorting
-        if filename == '$RECYCLE.BIN' or filename == 'System Volume Information' or filename == 'Audio' or \
-                filename == 'Images' or filename == 'Video' or filename == 'Documents' or filename == 'Exe' or \
-                filename == 'Compressed' or filename == 'Virtual_Machine_and_iso' or filename == 'Other':
+        # include blacklisted folders here
+        if filename in ['System Volume Information', '$RECYCLE.BIN', 'Images', 'Audio', 'Documents', 'Exe',
+                        'Compressed', 'Virtual_Machine_and_iso', 'Other']:
             continue
         if os.path.isdir(sortDir + filename):
             loopFolder(sortDir, sortDir + filename, fileTypes)
