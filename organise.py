@@ -46,7 +46,7 @@ def renameFile(dest, moveFile, fileType):
         if not os.path.isfile(dstPath):
             os.rename(srcPath, dstPath)
         else:
-            # If a file exits with newname added on in the folder just rename with UNIX timestamp
+            # If a file exits with newname added on rename with UNIX timestamp
             dstPath = dest + fileType + "\\" + str(int(time() * 10000)) + filename
             os.rename(srcPath, dstPath)
     else:

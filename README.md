@@ -18,5 +18,5 @@ This includes two Python scripts for folder organisation and sorting:
 - Running dups.py in your Music folder ```python dups.py C:\\Users\User\\Music\\```
 
 ## Requirements
-- Fiels were designed for Python 2.7.
+- Project was written for Python 2.7.
 - Scripts were run and tested in Windows but may also work for Linux.
